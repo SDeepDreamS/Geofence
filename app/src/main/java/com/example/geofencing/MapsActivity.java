@@ -87,6 +87,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     String post_url_string = "https://nthu-tourist-attractions-api.herokuapp.com/api/v1/maps/1/pois";
     String line="";
     String readData="";
+    Map<String, Object> Opi = new HashMap<String, Object>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,6 +111,79 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    public static java.util.Map<String, Object> jsonString2Map( String jsonString ) throws org.json.JSONException {
+        Map<String, Object> keys = new HashMap<String, Object>();
+        Log.d("jstring", jsonString);
+        org.json.JSONObject jsonObject = new org.json.JSONObject( jsonString ); // HashMap
+        java.util.Iterator<?> keyset = jsonObject.keys(); // HM
+
+        while (keyset.hasNext()) {
+            String key =  (String) keyset.next();
+            Object value = jsonObject.get(key);
+            //System.out.print("\n Key : "+key);
+            if ( value instanceof org.json.JSONObject ) {
+                //System.out.println("Incomin value is of JSONObject : ");
+                keys.put( key, jsonString2Map( value.toString() ));
+            } else if ( value instanceof org.json.JSONArray) {
+                org.json.JSONArray jsonArray = jsonObject.getJSONArray(key);
+                //JSONArray jsonArray = new JSONArray(value.toString());
+                keys.put( key, jsonArray2List( jsonArray ));
+            } else {
+                keyNode( value);
+                keys.put( key, value );
+            }
+        }
+        return keys;
+    }
+
+    public static java.util.List<Object> jsonArray2List( org.json.JSONArray arrayOFKeys ) throws org.json.JSONException {
+        System.out.println("Incoming value is of JSONArray : =========");
+        java.util.List<Object> array2List = new java.util.ArrayList<Object>();
+        for ( int i = 0; i < arrayOFKeys.length(); i++ )  {
+            if ( arrayOFKeys.opt(i) instanceof org.json.JSONObject ) {
+                Map<String, Object> subObj2Map = jsonString2Map(arrayOFKeys.opt(i).toString());
+                array2List.add(subObj2Map);
+            } else if ( arrayOFKeys.opt(i) instanceof org.json.JSONArray ) {
+                java.util.List<Object> subarray2List = jsonArray2List((org.json.JSONArray) arrayOFKeys.opt(i));
+                array2List.add(subarray2List);
+            } else {
+                keyNode( arrayOFKeys.opt(i) );
+                array2List.add( arrayOFKeys.opt(i) );
+            }
+        }
+        return array2List;
+    }
+    public static Object keyNode(Object o) {
+        if (o instanceof String || o instanceof Character) return (String) o;
+        else if (o instanceof Number) return (Number) o;
+        else return o;
+    }
+
+    public void postData(String url_string) throws JSONException {
+
+        JSONObject obj = new JSONObject();
+        obj.put("name", name.getText().toString());
+        obj.put("latitude", latitude.getText().toString());
+        obj.put("longitude", longitude.getText().toString());
+        obj.put("radius", radius.getText().toString());
+
+        RequestQueue queue = Volley.newRequestQueue(this);
+        JsonObjectRequest jsObjRequest = new JsonObjectRequest(Request.Method.POST, url_string, obj, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                System.out.println(response);
+                //Log.d("response", response);
+                //response_txt.setText(response);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.d("response", "Error is : " + error.getMessage());
+                response_txt.setText(error.getMessage());
+            }
+        });
+    }
+
     public void  startThreadForGettingDataUsingHttp(){
         Thread  thread = new Thread(new Runnable() {
             @Override
@@ -117,6 +191,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Log.d("network","Loading data");
                 String data = getDataFromAPI(url_string);
                 Log.d("network",data);
+                try {
+                    Opi = jsonString2Map(data);
+                    for (String key : Opi.keySet()){
+                        System.out.println("key= "+key+"and value = "+ Opi.get(key));
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
         });
         thread.start();
@@ -199,6 +281,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         enableUserLocation();
 
         mMap.setOnMapLongClickListener(this);
+
+        DrawGeofence(eiffel);
     }
 
     private void enableUserLocation() {
@@ -260,6 +344,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void handleMapLongClick(LatLng latLng) {
+        //mMap.clear();
+        addMarker(latLng);
+        addCircle(latLng, GEOFENCE_RADIUS);
+        addGeofence(latLng, GEOFENCE_RADIUS);
+    }
+
+    private void DrawGeofence(LatLng latLng) {
         //mMap.clear();
         addMarker(latLng);
         addCircle(latLng, GEOFENCE_RADIUS);
