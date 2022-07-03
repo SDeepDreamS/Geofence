@@ -52,6 +52,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -88,6 +89,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     String line="";
     String readData="";
     Map<String, Object> Opi = new HashMap<String, Object>();
+
+    String[] latitudeAr10= new String[10];
+    String[] longitudeAr10= new String[10];
+    String[] radiusAr10= new String[10];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -193,9 +198,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Log.d("network",data);
                 try {
                     Opi = jsonString2Map(data);
-                    for (String key : Opi.keySet()){
-                        System.out.println("key= "+key+"and value = "+ Opi.get(key));
-                    }
+                    JSONObject jdata = new JSONObject(Opi);
+                    processData(jdata);
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -204,6 +208,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         thread.start();
     }
 
+    public void processData(JSONObject jdata){
+        try {
+            JSONArray bbb = jdata.getJSONArray("data");
+            for(int i = 0; i < 8; i++){
+                JSONObject ccc = bbb.getJSONObject(i);
+                JSONObject ddd = ccc.getJSONObject("attributes");
+                latitudeAr10[i] = ddd.getString("latitude");
+                longitudeAr10[i] = ddd.getString("longitude");
+                radiusAr10[i] = ddd.getString("radius");
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+    }
 
     public String getDataFromAPI(String url_string){
         try {
@@ -281,8 +300,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         enableUserLocation();
 
         mMap.setOnMapLongClickListener(this);
-
-        DrawGeofence(eiffel);
     }
 
     private void enableUserLocation() {
@@ -345,16 +362,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void handleMapLongClick(LatLng latLng) {
         //mMap.clear();
-        addMarker(latLng);
-        addCircle(latLng, GEOFENCE_RADIUS);
-        addGeofence(latLng, GEOFENCE_RADIUS);
+//        addMarker(latLng);
+//        addCircle(latLng, GEOFENCE_RADIUS);
+//        addGeofence(latLng, GEOFENCE_RADIUS);
+        for(int i=0; i<8; i++){
+            LatLng myLatLng = new LatLng(Double.parseDouble(latitudeAr10[i]), Double.parseDouble(longitudeAr10[i]));
+            DrawGeofence(myLatLng, Float.parseFloat(radiusAr10[i]));
+        }
     }
 
-    private void DrawGeofence(LatLng latLng) {
+    private void DrawGeofence(LatLng latLng, float radius) {
         //mMap.clear();
         addMarker(latLng);
-        addCircle(latLng, GEOFENCE_RADIUS);
-        addGeofence(latLng, GEOFENCE_RADIUS);
+        addCircle(latLng, radius);
+        addGeofence(latLng, radius);
     }
 
     private void addGeofence(LatLng latLng, float radius) {
